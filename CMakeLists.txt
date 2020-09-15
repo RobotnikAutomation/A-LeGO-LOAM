@@ -60,6 +60,8 @@ target_link_libraries(IP ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(LO src/LO.cpp)
 target_link_libraries(LO ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
+add_dependencies(LO ${PROJECT_NAME}_generate_messages_cpp)
+
 add_executable(LM src/LM.cpp)
 target_link_libraries(LM ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} gtsam)
 

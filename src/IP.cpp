@@ -181,12 +181,24 @@ public:
         continue;
       }
 
-      horizon_ang = RAD2ANGLE(-atan2(p.y, p.x) + 2 * M_PI);
-      col_id = horizon_ang / ang_res_x;
-      if (col_id >= Horizon_SCAN)
-      {
-        col_id -= Horizon_SCAN;
+      // When the range of the lidar is 360
+      if(Horizon_angle == 360.0){
+        horizon_ang = RAD2ANGLE(-atan2(p.y, p.x) + 2 * M_PI);
+        col_id = horizon_ang / ang_res_x;
+        if (col_id >= Horizon_SCAN)
+        {
+          col_id -= Horizon_SCAN;
+        }
       }
+      else{
+        // When the range of the lidar is not 360 
+        horizon_ang = RAD2ANGLE(-atan2(p.y, p.x));
+        if(horizon_ang>M_PI)
+          horizon_ang -= 2*M_PI;
+
+        col_id = (horizon_ang + ang_left) / ang_res_x + 0.5;
+      }
+
       if (col_id < 0 || col_id >= Horizon_SCAN)
       {
         ROS_WARN("error col_id %d ", col_id);

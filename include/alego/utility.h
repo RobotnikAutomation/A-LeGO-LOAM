@@ -22,6 +22,7 @@
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 #include <nodelet/nodelet.h>
 #include <pluginlib/class_list_macros.h>
 #include "alego/cloud_info.h"
@@ -47,19 +48,21 @@ using PointCloudT = pcl::PointCloud<PointT>;
 #define RAD2ANGLE(x) ((x)*180.0 / M_PI)
 #define ANGLE2RAD(x) ((x) / 180.0 * M_PI)
 
-const int N_SCAN = 16;
-const double ang_res_x = 0.09; // 10Hz: 0.18, 5Hz: 0.09
-const double ang_res_y = 2.0;
-const double scan_period = 0.2; // 10Hz: 0.1, 5Hz: 0.2
+const int N_SCAN = 64;
+const double ang_res_x = 0.7; // 10Hz: 0.18, 5Hz: 0.09
+const double ang_res_y = 2.1875;
+const double scan_period = 1.0/15; // 10Hz: 0.1, 5Hz: 0.2
 
-const int Horizon_SCAN = 360.0 / ang_res_x + 0.5;
-const double ang_bottom = 15.0;
+const int Horizon_angle = 210.0;
+const int Horizon_SCAN = Horizon_angle / ang_res_x + 0.5;
+const double ang_bottom = 35.0;
+const double ang_left = 105.0;
 const int ground_scan_id = 10;
-const double sensor_mount_ang = 0.; // 向下为正，向上为负
+const double sensor_mount_ang = 0.; // Down positive, up negative
 
 const double seg_alpha_x = ANGLE2RAD(ang_res_x);
 const double seg_alpha_y = ANGLE2RAD(ang_res_y);
-// 可以调调参数
+// Adjustable parameters
 const double seg_theta = 1.047;
 const int seg_valid_point_num = 5;
 const int seg_valid_line_num = 3;
@@ -70,6 +73,8 @@ const bool use_odom = false;
 const int imu_queue_length = 200;
 const int odom_queue_length = 1000;
 
+const bool use_slam_odom = true;
+
 const double nearest_feature_dist = 25.; // sqaured, 对应 5m
 
 enum LaserType
@@ -78,7 +83,7 @@ enum LaserType
   RFANS_16M
 };
 
-LaserType laser_type = LaserType::RFANS_16M;
+LaserType laser_type = LaserType::LSLIDAR_C16;
 
 struct PointXYZIRPYT
 {

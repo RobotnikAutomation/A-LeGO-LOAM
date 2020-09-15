@@ -108,7 +108,7 @@ private:
 
   double min_keyframe_dist_;
 
-  // 回环检测使用
+  // Loop closure
   deque<PointCloudT::Ptr> recent_corner_keyframes_;
   deque<PointCloudT::Ptr> recent_surf_keyframes_;
   deque<PointCloudT::Ptr> recent_outlier_keyframes_;
@@ -116,7 +116,7 @@ private:
   int latest_frame_id_;
   Eigen::Matrix4d correction_;
 
-  // 无回环检测使用
+  // No loop closure
   PointCloudT::Ptr surround_keyposes_;
   PointCloudT::Ptr surround_keyposes_ds_;
   vector<int> surround_exist_keypose_id_;
@@ -300,13 +300,38 @@ public:
   {
     time_laser_odom_ = msg->header.stamp.toSec();
     new_laser_odom_ = true;
-    t_odom2laser_(0) = msg->pose.pose.position.x;
-    t_odom2laser_(1) = msg->pose.pose.position.y;
-    t_odom2laser_(2) = msg->pose.pose.position.z;
-    q_odom2laser_.w() = msg->pose.pose.orientation.w;
-    q_odom2laser_.x() = msg->pose.pose.orientation.x;
-    q_odom2laser_.y() = msg->pose.pose.orientation.y;
-    q_odom2laser_.z() = msg->pose.pose.orientation.z;
+    if(!use_slam_odom){
+
+      static tf::TransformListener ls;
+      ros::Time t = msg->header.stamp;
+      tf::StampedTransform odom;
+
+      try{
+        ls.waitForTransform("odom", "base_link", t, ros::Duration(1));
+        ls.lookupTransform("odom", "base_link", t, odom);
+      }
+      catch (tf::ExtrapolationException e){
+        ROS_DEBUG_NAMED("mapping", "frame broadcaster extrapolation failed");
+      }
+
+      t_odom2laser_(0) = odom.getOrigin().x();
+      t_odom2laser_(1) = odom.getOrigin().y();
+      t_odom2laser_(2) = odom.getOrigin().z();
+      q_odom2laser_.w() = odom.getRotation().w();
+      q_odom2laser_.x() = odom.getRotation().x();
+      q_odom2laser_.y() = odom.getRotation().y();
+      q_odom2laser_.z() = odom.getRotation().z();
+    }
+    else{
+      t_odom2laser_(0) = msg->pose.pose.position.x;
+      t_odom2laser_(1) = msg->pose.pose.position.y;
+      t_odom2laser_(2) = msg->pose.pose.position.z;
+      q_odom2laser_.w() = msg->pose.pose.orientation.w;
+      q_odom2laser_.x() = msg->pose.pose.orientation.x;
+      q_odom2laser_.y() = msg->pose.pose.orientation.y;
+      q_odom2laser_.z() = msg->pose.pose.orientation.z;
+    }
+
     t_map2laser_ = q_map2odom_ * t_odom2laser_ + t_map2odom_;
     q_map2laser_ = q_map2odom_ * q_odom2laser_;
     if (pub_odom_aft_mapped_.getNumSubscribers() > 0)
@@ -327,7 +352,7 @@ public:
     tf::Transform tf_m2o;
     tf_m2o.setOrigin(tf::Vector3(t_map2odom_.x(), t_map2odom_.y(), t_map2odom_.z()));
     tf_m2o.setRotation(tf::Quaternion(q_map2odom_.x(), q_map2odom_.y(), q_map2odom_.z(), q_map2odom_.w()));
-    tf_broadcaster_.sendTransform(tf::StampedTransform(tf_m2o, ros::Time::now(), "map", "/odom"));
+    tf_broadcaster_.sendTransform(tf::StampedTransform(tf_m2o, ros::Time::now(), "map", "/odom_map"));
   }
 
   void transformAssociateToMap()

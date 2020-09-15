@@ -605,7 +605,7 @@ public:
 
           tf::Transform o2b;
           tf::poseMsgToTF(laser_odometry->pose.pose, o2b);
-          tf_broad_.sendTransform(tf::StampedTransform(o2b, laser_odometry->header.stamp, "/odom", "/base_link"));
+          tf_broad_.sendTransform(tf::StampedTransform(o2b, laser_odometry->header.stamp, "/odom_map", "/base_link_map"));
 
           surf_last_ = less_flat;
           corner_last_ = less_sharp;
