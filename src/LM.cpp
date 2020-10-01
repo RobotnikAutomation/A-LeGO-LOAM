@@ -34,6 +34,8 @@ private:
 
   tf::TransformBroadcaster tf_broadcaster_;
 
+  std::string map_frame;
+
   NonlinearFactorGraph gtSAMgraph_;
   Values init_estimate_;
   Values opt_estimate_;
@@ -143,6 +145,9 @@ public:
     TicToc t_init;
 
     ROS_INFO("--------- LaserMapping init --------------");
+
+    map_frame = "map";
+    ros::param::get("/LM/map_frame", map_frame);
 
     surf_last_.reset(new PointCloudT);
     corner_last_.reset(new PointCloudT);
@@ -338,7 +343,7 @@ public:
     {
       nav_msgs::OdometryPtr msg(new nav_msgs::Odometry);
       msg->header.stamp.fromSec(time_laser_odom_);
-      msg->header.frame_id = "map";
+      msg->header.frame_id = map_frame;
       msg->child_frame_id = "/laser";
       msg->pose.pose.position.x = t_map2laser_.x();
       msg->pose.pose.position.y = t_map2laser_.y();
@@ -352,7 +357,7 @@ public:
     tf::Transform tf_m2o;
     tf_m2o.setOrigin(tf::Vector3(t_map2odom_.x(), t_map2odom_.y(), t_map2odom_.z()));
     tf_m2o.setRotation(tf::Quaternion(q_map2odom_.x(), q_map2odom_.y(), q_map2odom_.z(), q_map2odom_.w()));
-    tf_broadcaster_.sendTransform(tf::StampedTransform(tf_m2o, ros::Time::now(), "map", "/odom_map"));
+    tf_broadcaster_.sendTransform(tf::StampedTransform(tf_m2o, ros::Time::now(), map_frame, "/odom_map"));
   }
 
   void transformAssociateToMap()
@@ -761,7 +766,7 @@ public:
       sensor_msgs::PointCloud2Ptr msg(new sensor_msgs::PointCloud2);
       pcl::toROSMsg(*cloud_keyposes_3d_, *msg);
       msg->header.stamp.fromSec(time_laser_odom_);
-      msg->header.frame_id = "map";
+      msg->header.frame_id = map_frame;
       pub_keyposes_.publish(msg);
     }
   }
@@ -783,7 +788,7 @@ public:
         }
         pcl::toROSMsg(*pc_map, *msg);
         msg->header.stamp.fromSec(time_laser_odom_);
-        msg->header.frame_id = "map";
+        msg->header.frame_id = map_frame;
         pub_cloud_surround_.publish(msg);
       }
       if (pub_recent_keyframes_.getNumSubscribers() > 0)
@@ -794,7 +799,7 @@ public:
         *pc_map += *surf_from_map_ds_;
         pcl::toROSMsg(*pc_map, *msg);
         msg->header.stamp.fromSec(time_laser_odom_);
-        msg->header.frame_id = "map";
+        msg->header.frame_id = map_frame;
         pub_recent_keyframes_.publish(msg);
       }
       rate.sleep();
@@ -879,7 +884,7 @@ public:
         sensor_msgs::PointCloud2Ptr msg(new sensor_msgs::PointCloud2);
         pcl::toROSMsg(*closed_cloud, *msg);
         msg->header.stamp.fromSec(cloud_keyposes_6d_->points[latest_history_frame_id_].time);
-        msg->header.frame_id = "map";
+        msg->header.frame_id = map_frame;
         pub_icp_keyframes_.publish(msg);
       }
     }
@@ -992,7 +997,7 @@ public:
       sensor_msgs::PointCloud2Ptr msg(new sensor_msgs::PointCloud2);
       pcl::toROSMsg(*near_history_keyframes_, *msg);
       msg->header.stamp.fromSec(cloud_keyposes_6d_->points[latest_history_frame_id_].time);
-      msg->header.frame_id = "map";
+      msg->header.frame_id = map_frame;
       pub_history_keyframes_.publish(msg);
     }
     ROS_INFO("detectLoopClosure: %.3fms", t_dlc.toc());
