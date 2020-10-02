@@ -28,6 +28,12 @@ private:
   queue<nav_msgs::OdometryConstPtr> odom_buf_;
   queue<sensor_msgs::ImuConstPtr> imu_buf_;
 
+  std::string odom_frame;
+  std::string base_frame;
+  std::string odom_map_frame;
+  std::string base_map_frame;
+  bool broadcast_tf;
+
   int imu_ptr_front_, imu_ptr_last_, imu_ptr_last_iter_;
   std::array<double, imu_queue_length> imu_time_;
   std::array<double, imu_queue_length> imu_roll_;
@@ -106,6 +112,17 @@ public:
     cloud_label_.fill(0);
     cloud_sort_idx_.fill(0);
 
+    odom_frame = "odom";
+    base_frame = "base_link";
+    odom_map_frame = "odom_map";
+    base_map_frame = "base_link_map";
+    broadcast_tf = true;
+    ros::param::get("~odom_frame", odom_frame);
+    ros::param::get("~base_frame", base_frame);
+    ros::param::get("~odom_map_frame", odom_map_frame);
+    ros::param::get("~base_map_frame", base_map_frame);
+    ros::param::get("~broadcast_tf", broadcast_tf);
+
     system_initialized_ = false;
     surf_last_.reset(new PointCloudT);
     corner_last_.reset(new PointCloudT);
@@ -120,26 +137,26 @@ public:
     r_w_cur_.setIdentity();
     tf_b2l_.setIdentity();
 
-    pub_corner_ = nh_.advertise<sensor_msgs::PointCloud2>("/corner", 10);
-    pub_corner_less_ = nh_.advertise<sensor_msgs::PointCloud2>("/corner_less", 10);
-    pub_surf_ = nh_.advertise<sensor_msgs::PointCloud2>("/surf", 10);
-    pub_surf_less_ = nh_.advertise<sensor_msgs::PointCloud2>("/surf_less", 10);
-    pub_undistorted_pc_ = nh_.advertise<sensor_msgs::PointCloud2>("/undistorted", 10);
-    pub_odom_ = nh_.advertise<nav_msgs::Odometry>("/odom/lidar", 10);
-    pub_surf_last_ = nh_.advertise<sensor_msgs::PointCloud2>("/surf_last", 10);
-    pub_corner_last_ = nh_.advertise<sensor_msgs::PointCloud2>("/corner_last", 10);
-    pub_outlier_last_ = nh_.advertise<sensor_msgs::PointCloud2>("/outlier_last", 10);
+    pub_corner_ = nh_.advertise<sensor_msgs::PointCloud2>("corner", 10);
+    pub_corner_less_ = nh_.advertise<sensor_msgs::PointCloud2>("corner_less", 10);
+    pub_surf_ = nh_.advertise<sensor_msgs::PointCloud2>("surf", 10);
+    pub_surf_less_ = nh_.advertise<sensor_msgs::PointCloud2>("surf_less", 10);
+    pub_undistorted_pc_ = nh_.advertise<sensor_msgs::PointCloud2>("undistorted", 10);
+    pub_odom_ = nh_.advertise<nav_msgs::Odometry>("odom/lidar", 10);
+    pub_surf_last_ = nh_.advertise<sensor_msgs::PointCloud2>("surf_last", 10);
+    pub_corner_last_ = nh_.advertise<sensor_msgs::PointCloud2>("corner_last", 10);
+    pub_outlier_last_ = nh_.advertise<sensor_msgs::PointCloud2>("outlier_last", 10);
 
-    sub_segmented_cloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/segmented_cloud", 10, boost::bind(&LO::segCloudHandler, this, _1));
-    sub_segmented_info_ = nh_.subscribe<alego::cloud_info>("/seg_info", 10, boost::bind(&LO::segInfoHandler, this, _1));
-    sub_outlier_ = nh_.subscribe<sensor_msgs::PointCloud2>("/outlier", 10, boost::bind(&LO::outlierHandler, this, _1));
+    sub_segmented_cloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("segmented_cloud", 10, boost::bind(&LO::segCloudHandler, this, _1));
+    sub_segmented_info_ = nh_.subscribe<alego::cloud_info>("seg_info", 10, boost::bind(&LO::segInfoHandler, this, _1));
+    sub_outlier_ = nh_.subscribe<sensor_msgs::PointCloud2>("outlier", 10, boost::bind(&LO::outlierHandler, this, _1));
     if (use_imu)
     {
-      sub_imu_ = nh_.subscribe<sensor_msgs::Imu>("/imu/data", 100, boost::bind(&LO::imuHandler, this, _1));
+      sub_imu_ = nh_.subscribe<sensor_msgs::Imu>("imu/data", 100, boost::bind(&LO::imuHandler, this, _1));
     }
     else if (use_odom)
     {
-      sub_odom_ = nh_.subscribe<nav_msgs::Odometry>("/odom/imu", 100, boost::bind(&LO::odomHandler, this, _1));
+      sub_odom_ = nh_.subscribe<nav_msgs::Odometry>("odom/imu", 100, boost::bind(&LO::odomHandler, this, _1));
     }
 
     cout << "LO onInit end: " << t_init.toc() << endl;
@@ -591,8 +608,8 @@ public:
           tf_o2b = tf_o2b * tf_b2l_.inverse();
           Eigen::Quaterniond tmp_q(tf_o2b.block<3, 3>(0, 0));
           nav_msgs::OdometryPtr laser_odometry(new nav_msgs::Odometry);
-          laser_odometry->header.frame_id = "/odom";
-          laser_odometry->child_frame_id = "/base_link";
+          laser_odometry->header.frame_id = odom_frame;
+          laser_odometry->child_frame_id = base_frame;
           laser_odometry->header.stamp = ros::Time().fromSec(t1);
           laser_odometry->pose.pose.orientation.x = tmp_q.x();
           laser_odometry->pose.pose.orientation.y = tmp_q.y();
@@ -603,9 +620,11 @@ public:
           laser_odometry->pose.pose.position.z = tf_o2b(2, 3);
           pub_odom_.publish(laser_odometry);
 
-          tf::Transform o2b;
-          tf::poseMsgToTF(laser_odometry->pose.pose, o2b);
-          tf_broad_.sendTransform(tf::StampedTransform(o2b, laser_odometry->header.stamp, "/odom_map", "/base_link_map"));
+          if(broadcast_tf){
+            tf::Transform o2b;
+            tf::poseMsgToTF(laser_odometry->pose.pose, o2b);
+            tf_broad_.sendTransform(tf::StampedTransform(o2b, laser_odometry->header.stamp, odom_map_frame, base_map_frame));
+          }
 
           surf_last_ = less_flat;
           corner_last_ = less_sharp;

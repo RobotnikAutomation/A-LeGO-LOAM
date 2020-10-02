@@ -35,6 +35,11 @@ private:
   tf::TransformBroadcaster tf_broadcaster_;
 
   std::string map_frame;
+  std::string odom_frame;
+  std::string base_frame;
+  std::string odom_map_frame;
+  std::string base_map_frame;
+  bool broadcast_tf;
 
   NonlinearFactorGraph gtSAMgraph_;
   Values init_estimate_;
@@ -147,7 +152,15 @@ public:
     ROS_INFO("--------- LaserMapping init --------------");
 
     map_frame = "map";
-    ros::param::get("/LM/map_frame", map_frame);
+    odom_frame = "odom";
+    base_frame = "base_link";
+    odom_map_frame = "odom_map";
+    broadcast_tf = true;
+    ros::param::get("~map_frame", map_frame);
+    ros::param::get("~odom_frame", odom_frame);
+    ros::param::get("~base_frame", base_frame);
+    ros::param::get("~odom_map_frame", odom_map_frame);
+    ros::param::get("~broadcast_tf", broadcast_tf);
 
     surf_last_.reset(new PointCloudT);
     corner_last_.reset(new PointCloudT);
@@ -218,18 +231,18 @@ public:
     loop_closure_enabled_ = true;
     correction_.setIdentity();
 
-    pub_cloud_surround_ = nh_.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surround", 10);
-    pub_odom_aft_mapped_ = nh_.advertise<nav_msgs::Odometry>("/odom_aft_mapped", 10);
-    pub_keyposes_ = nh_.advertise<sensor_msgs::PointCloud2>("/keyposes", 10);
-    pub_recent_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("/recent_keyframes", 10);
-    pub_history_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("/history_keyframes", 10);
-    pub_icp_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("/icp_keyframes", 10);
-    srv_save_map_ = nh_.advertiseService("/save_map", &LM::saveMapCB, this);
+    pub_cloud_surround_ = nh_.advertise<sensor_msgs::PointCloud2>("laser_cloud_surround", 10);
+    pub_odom_aft_mapped_ = nh_.advertise<nav_msgs::Odometry>("odom_aft_mapped", 10);
+    pub_keyposes_ = nh_.advertise<sensor_msgs::PointCloud2>("keyposes", 10);
+    pub_recent_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("recent_keyframes", 10);
+    pub_history_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("history_keyframes", 10);
+    pub_icp_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("icp_keyframes", 10);
+    srv_save_map_ = nh_.advertiseService("save_map", &LM::saveMapCB, this);
 
-    sub_surf_last_ = nh_.subscribe<sensor_msgs::PointCloud2>("/surf_last", 10, boost::bind(&LM::surfLastHandler, this, _1));
-    sub_corner_last_ = nh_.subscribe<sensor_msgs::PointCloud2>("/corner_last", 10, boost::bind(&LM::cornerLastHandler, this, _1));
-    sub_outlier_last_ = nh_.subscribe<sensor_msgs::PointCloud2>("/outlier", 10, boost::bind(&LM::outlierLastHandler, this, _1));
-    sub_laser_odom_ = nh_.subscribe<nav_msgs::Odometry>("/odom/lidar", 10, boost::bind(&LM::laserOdomHandler, this, _1));
+    sub_surf_last_ = nh_.subscribe<sensor_msgs::PointCloud2>("surf_last", 10, boost::bind(&LM::surfLastHandler, this, _1));
+    sub_corner_last_ = nh_.subscribe<sensor_msgs::PointCloud2>("corner_last", 10, boost::bind(&LM::cornerLastHandler, this, _1));
+    sub_outlier_last_ = nh_.subscribe<sensor_msgs::PointCloud2>("outlier", 10, boost::bind(&LM::outlierLastHandler, this, _1));
+    sub_laser_odom_ = nh_.subscribe<nav_msgs::Odometry>("odom/lidar", 10, boost::bind(&LM::laserOdomHandler, this, _1));
 
     loop_thread_ = std::thread(&LM::loopClosureThread, this);
     visualize_thread_ = std::thread(&LM::visualizeGlobalMapThread, this);
@@ -312,8 +325,8 @@ public:
       tf::StampedTransform odom;
 
       try{
-        ls.waitForTransform("odom", "base_link", t, ros::Duration(1));
-        ls.lookupTransform("odom", "base_link", t, odom);
+        ls.waitForTransform(odom_frame, base_frame, t, ros::Duration(1));
+        ls.lookupTransform(odom_frame, base_frame, t, odom);
       }
       catch (tf::ExtrapolationException e){
         ROS_DEBUG_NAMED("mapping", "frame broadcaster extrapolation failed");
@@ -354,10 +367,13 @@ public:
       msg->pose.pose.orientation.z = q_map2laser_.z();
       pub_odom_aft_mapped_.publish(msg);
     }
-    tf::Transform tf_m2o;
-    tf_m2o.setOrigin(tf::Vector3(t_map2odom_.x(), t_map2odom_.y(), t_map2odom_.z()));
-    tf_m2o.setRotation(tf::Quaternion(q_map2odom_.x(), q_map2odom_.y(), q_map2odom_.z(), q_map2odom_.w()));
-    tf_broadcaster_.sendTransform(tf::StampedTransform(tf_m2o, ros::Time::now(), map_frame, "/odom_map"));
+
+    if(broadcast_tf){
+      tf::Transform tf_m2o;
+      tf_m2o.setOrigin(tf::Vector3(t_map2odom_.x(), t_map2odom_.y(), t_map2odom_.z()));
+      tf_m2o.setRotation(tf::Quaternion(q_map2odom_.x(), q_map2odom_.y(), q_map2odom_.z(), q_map2odom_.w()));
+      tf_broadcaster_.sendTransform(tf::StampedTransform(tf_m2o, ros::Time::now(), map_frame, odom_map_frame));
+    }
   }
 
   void transformAssociateToMap()

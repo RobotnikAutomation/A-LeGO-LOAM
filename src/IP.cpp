@@ -67,10 +67,10 @@ public:
     neighbor_iter_.emplace_back(0, -1);
     neighbor_iter_.emplace_back(0, 1);
 
-    pub_segmented_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("/segmented_cloud", 10);
-    pub_seg_info_ = nh_.advertise<alego::cloud_info>("/seg_info", 10);
-    pub_outlier_ = nh_.advertise<sensor_msgs::PointCloud2>("/outlier", 10);
-    sub_pc_ = nh_.subscribe<sensor_msgs::PointCloud2>("/lslidar_point_cloud", 10, boost::bind(&IP::pcCB, this, _1));
+    pub_segmented_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("segmented_cloud", 10);
+    pub_seg_info_ = nh_.advertise<alego::cloud_info>("seg_info", 10);
+    pub_outlier_ = nh_.advertise<sensor_msgs::PointCloud2>("outlier", 10);
+    sub_pc_ = nh_.subscribe<sensor_msgs::PointCloud2>("lslidar_point_cloud", 10, boost::bind(&IP::pcCB, this, _1));
     ROS_INFO_STREAM("ImageProjection onInit end: " << t_init.toc());
   }
 
