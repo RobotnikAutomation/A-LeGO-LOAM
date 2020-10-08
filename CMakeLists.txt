@@ -48,14 +48,22 @@ include_directories(
 add_library(imageProjection src/imageProjection.cpp)
 target_link_libraries(imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_dependencies(imageProjection ${PROJECT_NAME}_generate_messages_cpp)
+
 add_library(laserOdometry src/laserOdometry.cpp)
 target_link_libraries(laserOdometry ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+
+add_dependencies(laserOdometry ${PROJECT_NAME}_generate_messages_cpp)
 
 add_library(laserMapping src/laserMapping.cpp)
 target_link_libraries(laserMapping ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} gtsam)
 
+add_dependencies(laserMapping ${PROJECT_NAME}_generate_messages_cpp)
+
 add_executable(IP src/IP.cpp)
 target_link_libraries(IP ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_dependencies(IP ${PROJECT_NAME}_generate_messages_cpp)
 
 add_executable(LO src/LO.cpp)
 target_link_libraries(LO ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
@@ -64,4 +72,6 @@ add_dependencies(LO ${PROJECT_NAME}_generate_messages_cpp)
 
 add_executable(LM src/LM.cpp)
 target_link_libraries(LM ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} gtsam)
+
+add_dependencies(LM ${PROJECT_NAME}_generate_messages_cpp)
 
