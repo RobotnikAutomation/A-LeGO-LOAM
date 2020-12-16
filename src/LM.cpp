@@ -329,7 +329,8 @@ public:
         ls.lookupTransform(odom_frame, base_frame, t, odom);
       }
       catch (tf::ExtrapolationException e){
-        ROS_DEBUG_NAMED("mapping", "frame broadcaster extrapolation failed");
+        ROS_WARN_NAMED("mapping", "frame broadcaster extrapolation failed");
+        return;
       }
 
       t_odom2laser_(0) = odom.getOrigin().x();
