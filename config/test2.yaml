@@ -1,0 +1,43 @@
+# EXAMPLE INDOORS CONFIGURATION RSLIDAR16
+input_cloud_topic: "/robot/top_3d_laser/rslidar_points"
+output_map_topic: "map_3D"
+
+N_SCAN: 16
+ang_res_x: 0.17875
+ang_res_y: 2
+scan_frec: 8.93
+
+Horizon_angle: 360
+ang_bottom: 15
+ang_left: 180
+ground_scan_id: 10
+sensor_mount_ang: 0.
+
+seg_theta: 1.047
+seg_valid_point_num: 5
+seg_valid_line_num: 3
+
+#set use_imu=false when use_odom=true
+use_imu: true
+use_odom: false
+imu_queue_length: 200
+odom_queue_length: 1000
+sub_imu_topic: /robot/imu/data
+sub_odom_topic: /robot/odom/imu
+
+nearest_feature_dist: 25.
+
+odom_frame: "robot_odom"
+base_frame: "robot_base_footprint"
+odom_map_frame: "robot_odom"
+base_map_frame: "robot_base_footprint"
+
+#LO
+less_flat_leaf_size: 0.2
+
+#LM
+corner_leaf_size: 0.2
+surf_leaf_size: 0.2
+outlier_leaf_size: 1.0
+keyposes_leaf_size: 1.0
+history_keyframes_leaf_size: 0.4

@@ -3,6 +3,7 @@ project(alego)
 
 set(CMAKE_BUILD_TYPE "Release")
 add_compile_options(-std=c++11)
+find_package(OpenCV REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -14,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   pcl_conversions
   message_generation
+  cv_bridge
 )
 
 find_package(Eigen3 REQUIRED)
@@ -43,25 +45,26 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
   ${GTSAM_INCLUDE_DIR}
   ${CERES_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
-add_library(imageProjection src/imageProjection.cpp)
-target_link_libraries(imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+#add_library(imageProjection src/imageProjection.cpp)
+#target_link_libraries(imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-add_dependencies(imageProjection ${PROJECT_NAME}_generate_messages_cpp)
+#add_dependencies(imageProjection ${PROJECT_NAME}_generate_messages_cpp)
 
-add_library(laserOdometry src/laserOdometry.cpp)
-target_link_libraries(laserOdometry ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+#add_library(laserOdometry src/laserOdometry.cpp)
+#target_link_libraries(laserOdometry ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_dependencies(laserOdometry ${PROJECT_NAME}_generate_messages_cpp)
+#add_dependencies(laserOdometry ${PROJECT_NAME}_generate_messages_cpp)
 
-add_library(laserMapping src/laserMapping.cpp)
-target_link_libraries(laserMapping ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} gtsam)
+#add_library(laserMapping src/laserMapping.cpp)
+#target_link_libraries(laserMapping ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} gtsam)
 
-add_dependencies(laserMapping ${PROJECT_NAME}_generate_messages_cpp)
+#add_dependencies(laserMapping ${PROJECT_NAME}_generate_messages_cpp)
 
 add_executable(IP src/IP.cpp)
-target_link_libraries(IP ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(IP ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 add_dependencies(IP ${PROJECT_NAME}_generate_messages_cpp)
 

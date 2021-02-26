@@ -1,10 +1,9 @@
 #include "alego/utility.h"
 
 using namespace std;
-class LO
+class LO : public ParamServer
 {
 private:
-  ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
   ros::Subscriber sub_segmented_cloud_;
   ros::Subscriber sub_segmented_info_;
@@ -34,29 +33,34 @@ private:
   std::string base_map_frame;
   bool broadcast_tf;
 
+  double less_flat_leaf_size;
+
+  std::string sub_imu_topic;
+  std::string sub_odom_topic;
+
   int imu_ptr_front_, imu_ptr_last_, imu_ptr_last_iter_;
-  std::array<double, imu_queue_length> imu_time_;
-  std::array<double, imu_queue_length> imu_roll_;
-  std::array<double, imu_queue_length> imu_pitch_;
-  std::array<double, imu_queue_length> imu_yaw_;
-  std::array<double, imu_queue_length> imu_shift_x_;
-  std::array<double, imu_queue_length> imu_shift_y_;
-  std::array<double, imu_queue_length> imu_shift_z_;
-  std::array<double, imu_queue_length> imu_velo_x_;
-  std::array<double, imu_queue_length> imu_velo_y_;
-  std::array<double, imu_queue_length> imu_velo_z_;
+  double* imu_time_;
+  double* imu_roll_;
+  double* imu_pitch_;
+  double* imu_yaw_;
+  double* imu_shift_x_;
+  double* imu_shift_y_;
+  double* imu_shift_z_;
+  double* imu_velo_x_;
+  double* imu_velo_y_;
+  double* imu_velo_z_;
 
   // 里程计相关
   int odom_ptr_front_, odom_ptr_last_, odom_ptr_last_iter_;
-  std::array<nav_msgs::OdometryConstPtr, odom_queue_length> odom_queue_;
-  std::array<double, odom_queue_length> odom_roll_;
-  std::array<double, odom_queue_length> odom_pitch_;
-  std::array<double, odom_queue_length> odom_yaw_;
+  nav_msgs::OdometryConstPtr* odom_queue_;
+  double* odom_roll_;
+  double* odom_pitch_;
+  double* odom_yaw_;
 
-  std::array<double, N_SCAN * Horizon_SCAN> cloud_curvature_;
-  std::array<bool, N_SCAN * Horizon_SCAN> cloud_neighbor_picked_;
-  std::array<int, N_SCAN * Horizon_SCAN> cloud_label_;
-  std::array<int, N_SCAN * Horizon_SCAN> cloud_sort_idx_;
+  double* cloud_curvature_;
+  bool* cloud_neighbor_picked_;
+  int* cloud_label_;
+  int* cloud_sort_idx_;
 
   bool system_initialized_;
 
@@ -77,7 +81,7 @@ private:
   std::mutex m_buf_;
 
 public:
-  LO(ros::NodeHandle nh) : nh_(nh)
+  LO()
   {
     onInit();
   }
@@ -96,32 +100,39 @@ public:
     imu_ptr_front_ = odom_ptr_front_ = 0;
     imu_ptr_last_ = odom_ptr_last_ = -1;
     imu_ptr_last_iter_ = odom_ptr_last_iter_ = 0;
-    imu_time_.fill(0);
-    imu_roll_.fill(0);
-    imu_pitch_.fill(0);
-    imu_yaw_.fill(0);
-    imu_velo_x_.fill(0);
-    imu_velo_y_.fill(0);
-    imu_velo_z_.fill(0);
-    imu_shift_x_.fill(0);
-    imu_shift_y_.fill(0);
-    imu_shift_z_.fill(0);
+    imu_time_ = new double[imu_queue_length];
+    imu_roll_ = new double[imu_queue_length];
+    imu_pitch_ = new double[imu_queue_length];
+    imu_yaw_ = new double[imu_queue_length];
+    imu_velo_x_ = new double[imu_queue_length];
+    imu_velo_y_ = new double[imu_queue_length];
+    imu_velo_z_ = new double[imu_queue_length];
+    imu_shift_x_ = new double[imu_queue_length];
+    imu_shift_y_ = new double[imu_queue_length];
+    imu_shift_z_ = new double[imu_queue_length];
 
-    cloud_curvature_.fill(0);
-    cloud_neighbor_picked_.fill(false);
-    cloud_label_.fill(0);
-    cloud_sort_idx_.fill(0);
+    odom_queue_ = new nav_msgs::OdometryConstPtr[odom_queue_length];
+    odom_roll_ = new double[odom_queue_length];
+    odom_pitch_ = new double[odom_queue_length];
+    odom_yaw_ = new double[odom_queue_length];
+
+    cloud_curvature_ = new double[N_SCAN * Horizon_SCAN];
+    cloud_neighbor_picked_ = new bool[N_SCAN * Horizon_SCAN];
+    cloud_label_ = new int[N_SCAN * Horizon_SCAN];
+    cloud_sort_idx_ = new int[N_SCAN * Horizon_SCAN];
 
     odom_frame = "odom";
     base_frame = "base_link";
     odom_map_frame = "odom_map";
     base_map_frame = "base_link_map";
     broadcast_tf = true;
-    ros::param::get("~odom_frame", odom_frame);
-    ros::param::get("~base_frame", base_frame);
-    ros::param::get("~odom_map_frame", odom_map_frame);
-    ros::param::get("~base_map_frame", base_map_frame);
-    ros::param::get("~broadcast_tf", broadcast_tf);
+    ros::param::get("odom_frame", odom_frame);
+    ros::param::get("base_frame", base_frame);
+    ros::param::get("odom_map_frame", odom_map_frame);
+    ros::param::get("base_map_frame", base_map_frame);
+    ros::param::get("broadcast_tf", broadcast_tf);
+
+    nh_.param<double>("less_flat_leaf_size", less_flat_leaf_size, 0.4);
 
     system_initialized_ = false;
     surf_last_.reset(new PointCloudT);
@@ -150,13 +161,17 @@ public:
     sub_segmented_cloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("segmented_cloud", 10, boost::bind(&LO::segCloudHandler, this, _1));
     sub_segmented_info_ = nh_.subscribe<alego::cloud_info>("seg_info", 10, boost::bind(&LO::segInfoHandler, this, _1));
     sub_outlier_ = nh_.subscribe<sensor_msgs::PointCloud2>("outlier", 10, boost::bind(&LO::outlierHandler, this, _1));
+
+    nh_.param<std::string>("sub_imu_topic", sub_imu_topic, "/imu/data");
+    nh_.param<std::string>("sub_odom_topic", sub_odom_topic, "/odom/imu");
+
     if (use_imu)
     {
-      sub_imu_ = nh_.subscribe<sensor_msgs::Imu>("imu/data", 100, boost::bind(&LO::imuHandler, this, _1));
+      sub_imu_ = nh_.subscribe<sensor_msgs::Imu>(sub_imu_topic, 100, boost::bind(&LO::imuHandler, this, _1));
     }
     else if (use_odom)
     {
-      sub_odom_ = nh_.subscribe<nav_msgs::Odometry>("odom/imu", 100, boost::bind(&LO::odomHandler, this, _1));
+      sub_odom_ = nh_.subscribe<nav_msgs::Odometry>(sub_odom_topic, 100, boost::bind(&LO::odomHandler, this, _1));
     }
 
     cout << "LO onInit end: " << t_init.toc() << endl;
@@ -227,7 +242,6 @@ public:
             {
               cloud_neighbor_picked_[i - 5] = cloud_neighbor_picked_[i - 4] = cloud_neighbor_picked_[i - 3] = cloud_neighbor_picked_[i - 2] = cloud_neighbor_picked_[i - 1] = cloud_neighbor_picked_[i] = true;
               occ1 += 6;
-              cout << "col1: " << seg_info->segmentedCloudColInd[i] << ", col2: " << seg_info->segmentedCloudColInd[i+1] << ", col_diff: " << col_diff << ", depth1: " << depth1 << ", depth2: " << depth2 << endl;
               continue;
             }
             else if (depth2 - depth1 > 0.5)
@@ -270,7 +284,7 @@ public:
               continue;
             }
             TicToc t_tmp;
-            std::sort(cloud_sort_idx_.begin() + sp, cloud_sort_idx_.begin() + ep + 1, [this](int a, int b) { return cloud_curvature_[a] < cloud_curvature_[b]; });
+            std::sort(cloud_sort_idx_ + sp, cloud_sort_idx_ + ep + 1, [this](int a, int b) { return cloud_curvature_[a] < cloud_curvature_[b]; });
             t_sort += t_tmp.toc();
 
             int picked_num = 0;
@@ -375,7 +389,7 @@ public:
 
           PointCloudT::Ptr less_flat_scan_ds(new PointCloudT);
           pcl::VoxelGrid<PointT> ds;
-          ds.setLeafSize(0.4, 0.4, 0.4);
+          ds.setLeafSize(less_flat_leaf_size, less_flat_leaf_size, less_flat_leaf_size); //0.4
           ds.setInputCloud(less_flat_scan);
           ds.filter(*less_flat_scan_ds);
           *less_flat += *less_flat_scan_ds;
@@ -917,8 +931,7 @@ public:
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "LO");
-  ros::NodeHandle nh;
-  LO lo(nh);
+  LO lo;
   lo.mainLoop();
   ros::spin();
   return 0;

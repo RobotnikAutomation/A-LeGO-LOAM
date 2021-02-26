@@ -1,11 +1,11 @@
 #include "alego/utility.h"
+#include <opencv2/opencv.hpp>
 
 using namespace std;
 
-class IP
+class IP : public ParamServer
 {
 private:
-  ros::NodeHandle nh_;
   ros::Subscriber sub_pc_;
   ros::Publisher pub_segmented_cloud_;
   ros::Publisher pub_seg_info_;
@@ -14,13 +14,15 @@ private:
   alego::cloud_infoPtr seg_info_msg_;
   sensor_msgs::PointCloud2Ptr outlier_cloud_msg_;
 
+  std::string input_cloud_topic;
+
   PointCloudT::Ptr full_cloud_;
   PointCloudT::Ptr segmented_cloud_;
   PointCloudT::Ptr outlier_cloud_;
 
-  Eigen::Matrix<double, Eigen::Dynamic, Horizon_SCAN> range_mat_;
-  Eigen::Matrix<int, Eigen::Dynamic, Horizon_SCAN> label_mat_;
-  Eigen::Matrix<bool, Eigen::Dynamic, Horizon_SCAN> ground_mat_;
+  cv::Mat range_mat_;
+  int* label_mat_;
+  bool* ground_mat_;
 
   int label_cnt_;
   vector<pair<int, int>> neighbor_iter_;
@@ -28,7 +30,7 @@ private:
   // params
 
 public:
-  IP(ros::NodeHandle nh) : nh_(nh)
+  IP()
   {
     onInit();
   }
@@ -55,22 +57,21 @@ public:
     full_cloud_->points.resize(N_SCAN * Horizon_SCAN);
     std::fill(full_cloud_->points.begin(), full_cloud_->points.end(), nan_p);
 
-    range_mat_.resize(N_SCAN, Eigen::NoChange);
-    label_mat_.resize(N_SCAN, Eigen::NoChange);
-    ground_mat_.resize(N_SCAN, Eigen::NoChange);
-    range_mat_.setConstant(std::numeric_limits<double>::max());
-    label_mat_.setZero();
-    ground_mat_.setZero();
+    range_mat_ = cv::Mat(N_SCAN, Horizon_SCAN, CV_64F, cv::Scalar::all(DBL_MAX));
+    label_mat_ = new int[N_SCAN*Horizon_SCAN];
+    ground_mat_ = new bool[N_SCAN*Horizon_SCAN];
     label_cnt_ = 1;
     neighbor_iter_.emplace_back(-1, 0);
     neighbor_iter_.emplace_back(1, 0);
     neighbor_iter_.emplace_back(0, -1);
     neighbor_iter_.emplace_back(0, 1);
 
+    nh_.param<std::string>("input_cloud_topic", input_cloud_topic, "lslidar_point_cloud");
+
     pub_segmented_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("segmented_cloud", 10);
     pub_seg_info_ = nh_.advertise<alego::cloud_info>("seg_info", 10);
     pub_outlier_ = nh_.advertise<sensor_msgs::PointCloud2>("outlier", 10);
-    sub_pc_ = nh_.subscribe<sensor_msgs::PointCloud2>("lslidar_point_cloud", 10, boost::bind(&IP::pcCB, this, _1));
+    sub_pc_ = nh_.subscribe<sensor_msgs::PointCloud2>(input_cloud_topic, 10, boost::bind(&IP::pcCB, this, _1));
     ROS_INFO_STREAM("ImageProjection onInit end: " << t_init.toc());
   }
 
@@ -105,6 +106,7 @@ public:
 
   void pcCB(const sensor_msgs::PointCloud2ConstPtr &msg)
   {
+    ROS_INFO("CB init");
     TicToc t_whole;
 
     seg_info_msg_->header = msg->header;
@@ -116,6 +118,7 @@ public:
     pcl::removeNaNFromPointCloud(*cloud_in, *cloud_in, indices);
     removeClosedPointCloud(*cloud_in, *cloud_in, 1.0);
 
+    ROS_INFO("CB 1");
     int cloud_size = cloud_in->points.size();
     seg_info_msg_->startOrientation = -atan2(cloud_in->points[0].y, cloud_in->points[0].x);
     seg_info_msg_->endOrientation = -atan2(cloud_in->points[cloud_size - 1].y, cloud_in->points[cloud_size - 1].x) + 2 * M_PI;
@@ -205,7 +208,7 @@ public:
         continue;
       }
 
-      range_mat_(row_id, col_id) = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+      range_mat_.at<double>(row_id, col_id) = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 
       p.intensity = row_id + col_id / 10000.0;
       index = col_id + row_id * Horizon_SCAN;
@@ -234,7 +237,8 @@ public:
 
         if (abs(angle - sensor_mount_ang) < 10.)
         {
-          ground_mat_(i, j) = ground_mat_(i + 1, j) = true;
+          ground_mat_[i*Horizon_SCAN+j] = true;
+          ground_mat_[(i + 1)*Horizon_SCAN+j] = true;
         }
       }
     }
@@ -243,9 +247,9 @@ public:
     {
       for (int j = 0; j < Horizon_SCAN; ++j)
       {
-        if (ground_mat_(i, j) == true || range_mat_(i, j) == std::numeric_limits<double>::max())
+        if (ground_mat_[i*Horizon_SCAN+j] == true || range_mat_.at<double>(i, j) == DBL_MAX)
         {
-          label_mat_(i, j) = -1;
+          label_mat_[i*Horizon_SCAN+j] = -1;
         }
       }
     }
@@ -256,7 +260,7 @@ public:
     {
       for (int j = 0; j < Horizon_SCAN; ++j)
       {
-        if (label_mat_(i, j) == 0)
+        if (label_mat_[i*Horizon_SCAN+j] == 0)
         {
           labelComponents(i, j);
         }
@@ -269,10 +273,10 @@ public:
       seg_info_msg_->startRingIndex[i] = line_size + 5;
       for (int j = 0; j < Horizon_SCAN; ++j)
       {
-        if (label_mat_(i, j) > 0 || ground_mat_(i, j) == true)
+        if (label_mat_[i*Horizon_SCAN+j] > 0 || ground_mat_[i*Horizon_SCAN+j] == true)
         {
           // TODO: 这里对噪点和地面点的滤波对结果有提升吗？
-          if (label_mat_(i, j) == 999999)
+          if (label_mat_[i*Horizon_SCAN+j] == 999999)
           {
             if (i > ground_scan_id && j % 5 == 0)
             {
@@ -280,7 +284,7 @@ public:
             }
             continue;
           }
-          else if (ground_mat_(i, j) == true)
+          else if (ground_mat_[i*Horizon_SCAN+j] == true)
           {
             if (j % 5 != 0 && j > 4 && j < Horizon_SCAN - 5)
             {
@@ -288,9 +292,9 @@ public:
             }
           }
 
-          seg_info_msg_->segmentedCloudGroundFlag[line_size] = (ground_mat_(i, j) == true);
+          seg_info_msg_->segmentedCloudGroundFlag[line_size] = (ground_mat_[i*Horizon_SCAN+j] == true);
           seg_info_msg_->segmentedCloudColInd[line_size] = j;
-          seg_info_msg_->segmentedCloudRange[line_size] = range_mat_(i, j);
+          seg_info_msg_->segmentedCloudRange[line_size] = range_mat_.at<double>(i, j);
           segmented_cloud_->points.push_back(full_cloud_->points[j + i * Horizon_SCAN]);
           ++line_size;
         }
@@ -304,9 +308,12 @@ public:
 
     segmented_cloud_->clear();
     outlier_cloud_->clear();
-    range_mat_.setConstant(std::numeric_limits<double>::max());
-    label_mat_.setZero();
-    ground_mat_.setZero();
+    range_mat_.release();
+    range_mat_ = cv::Mat(N_SCAN, Horizon_SCAN, CV_64F, cv::Scalar::all(DBL_MAX));
+    for(int i=0; i<N_SCAN*Horizon_SCAN; i++)
+      label_mat_[i] = 0;
+    for(int i=0; i<N_SCAN*Horizon_SCAN; i++)
+      ground_mat_[i] = false;
     label_cnt_ = 1;
     PointT nan_p;
     nan_p.intensity = -1;
@@ -335,7 +342,7 @@ public:
       from_id_j = que_id_j.front();
       que_id_i.pop();
       que_id_j.pop();
-      label_mat_(from_id_i, from_id_j) = label_cnt_;
+      label_mat_[from_id_i*Horizon_SCAN+from_id_j] = label_cnt_;
       line_cnt_flag[from_id_i] = true;
 
       for (const auto &iter : neighbor_iter_)
@@ -354,14 +361,14 @@ public:
         {
           this_id_j = 0;
         }
-        if (label_mat_(this_id_i, this_id_j))
+        if (label_mat_[this_id_i*Horizon_SCAN+this_id_j])
         {
           // 已访问过，或者是地面/Nan 点
           continue;
         }
 
-        d1 = max(range_mat_(from_id_i, from_id_j), range_mat_(this_id_i, this_id_j));
-        d2 = min(range_mat_(from_id_i, from_id_j), range_mat_(this_id_i, this_id_j));
+        d1 = max(range_mat_.at<double>(from_id_i, from_id_j), range_mat_.at<double>(this_id_i, this_id_j));
+        d2 = min(range_mat_.at<double>(from_id_i, from_id_j), range_mat_.at<double>(this_id_i, this_id_j));
 
         if (iter.first == 0)
         {
@@ -379,7 +386,7 @@ public:
         {
           que_id_i.push(this_id_i);
           que_id_j.push(this_id_j);
-          label_mat_(this_id_i, this_id_j) = label_cnt_;
+          label_mat_[this_id_i*Horizon_SCAN+this_id_j] = label_cnt_;
           line_cnt_flag[this_id_i] = true;
           all_pushed_id_i.push(this_id_i);
           all_pushed_id_j.push(this_id_j);
@@ -416,7 +423,7 @@ public:
     {
       while (!all_pushed_id_i.empty())
       {
-        label_mat_(all_pushed_id_i.front(), all_pushed_id_j.front()) = 999999;
+        label_mat_[all_pushed_id_i.front()*Horizon_SCAN+all_pushed_id_j.front()] = 999999;
         all_pushed_id_i.pop();
         all_pushed_id_j.pop();
       }
@@ -448,8 +455,7 @@ public:
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "IP");
-  ros::NodeHandle nh;
-  IP ip(nh);
+  IP ip;
   ros::spin();
   return 0;
 }

@@ -12,10 +12,9 @@
 
 using namespace std;
 using namespace gtsam;
-class LM
+class LM : public ParamServer
 {
 private:
-  ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
   ros::Subscriber sub_surf_last_;
   ros::Subscriber sub_corner_last_;
@@ -40,6 +39,13 @@ private:
   std::string odom_map_frame;
   std::string base_map_frame;
   bool broadcast_tf;
+  std::string output_map_topic;
+
+  double corner_leaf_size;
+  double surf_leaf_size;
+  double outlier_leaf_size;
+  double keyposes_leaf_size;
+  double history_keyframes_leaf_size;
 
   NonlinearFactorGraph gtSAMgraph_;
   Values init_estimate_;
@@ -141,7 +147,7 @@ private:
   Eigen::Quaterniond q_map2laser_;
 
 public:
-  LM(ros::NodeHandle nh) : nh_(nh)
+  LM()
   {
     onInit();
   }
@@ -156,11 +162,11 @@ public:
     base_frame = "base_link";
     odom_map_frame = "odom_map";
     broadcast_tf = true;
-    ros::param::get("~map_frame", map_frame);
-    ros::param::get("~odom_frame", odom_frame);
-    ros::param::get("~base_frame", base_frame);
-    ros::param::get("~odom_map_frame", odom_map_frame);
-    ros::param::get("~broadcast_tf", broadcast_tf);
+    ros::param::get("map_frame", map_frame);
+    ros::param::get("odom_frame", odom_frame);
+    ros::param::get("base_frame", base_frame);
+    ros::param::get("odom_map_frame", odom_map_frame);
+    ros::param::get("broadcast_tf", broadcast_tf);
 
     surf_last_.reset(new PointCloudT);
     corner_last_.reset(new PointCloudT);
@@ -186,11 +192,17 @@ public:
 
     new_laser_surf_ = new_laser_corner_ = new_laser_outlier_ = new_laser_corner_ = false;
 
-    ds_corner_.setLeafSize(0.4, 0.4, 0.4);
-    ds_surf_.setLeafSize(0.8, 0.8, 0.8);
-    ds_outlier_.setLeafSize(1.0, 1.0, 1.0);
-    ds_keyposes_.setLeafSize(1.0, 1.0, 1.0);
-    ds_history_keyframes_.setLeafSize(0.4, 0.4, 0.4);
+    nh_.param<double>("corner_leaf_size", corner_leaf_size, 0.4);
+    nh_.param<double>("surf_leaf_size", surf_leaf_size, 0.8);
+    nh_.param<double>("outlier_leaf_size", outlier_leaf_size, 1.0);
+    nh_.param<double>("keyposes_leaf_size", keyposes_leaf_size, 1.0);
+    nh_.param<double>("history_keyframes_leaf_size", history_keyframes_leaf_size, 0.4);
+
+    ds_corner_.setLeafSize(corner_leaf_size, corner_leaf_size, corner_leaf_size);
+    ds_surf_.setLeafSize(surf_leaf_size, surf_leaf_size, surf_leaf_size);
+    ds_outlier_.setLeafSize(outlier_leaf_size, outlier_leaf_size, outlier_leaf_size);
+    ds_keyposes_.setLeafSize(keyposes_leaf_size, keyposes_leaf_size, keyposes_leaf_size);
+    ds_history_keyframes_.setLeafSize(history_keyframes_leaf_size, history_keyframes_leaf_size, history_keyframes_leaf_size);
 
     min_keyframe_dist_ = 1.0;
 
@@ -231,7 +243,9 @@ public:
     loop_closure_enabled_ = true;
     correction_.setIdentity();
 
-    pub_cloud_surround_ = nh_.advertise<sensor_msgs::PointCloud2>("laser_cloud_surround", 10);
+    nh_.param<std::string>("output_map_topic", output_map_topic, "laser_cloud_surround");
+
+    pub_cloud_surround_ = nh_.advertise<sensor_msgs::PointCloud2>(output_map_topic, 10);
     pub_odom_aft_mapped_ = nh_.advertise<nav_msgs::Odometry>("odom_aft_mapped", 10);
     pub_keyposes_ = nh_.advertise<sensor_msgs::PointCloud2>("keyposes", 10);
     pub_recent_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("recent_keyframes", 10);
@@ -1105,8 +1119,7 @@ public:
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "LM");
-  ros::NodeHandle nh;
-  LM lm(nh);
+  LM lm;
   lm.mainLoop();
   ros::spin();
   return 0;

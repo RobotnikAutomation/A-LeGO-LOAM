@@ -48,42 +48,11 @@ using PointCloudT = pcl::PointCloud<PointT>;
 #define RAD2ANGLE(x) ((x)*180.0 / M_PI)
 #define ANGLE2RAD(x) ((x) / 180.0 * M_PI)
 
-const int N_SCAN = 64;
-const double ang_res_x = 0.7; // 10Hz: 0.18, 5Hz: 0.09
-const double ang_res_y = 2.1875;
-const double scan_period = 1.0/15; // 10Hz: 0.1, 5Hz: 0.2
-
-const int Horizon_angle = 210.0;
-const int Horizon_SCAN = Horizon_angle / ang_res_x + 0.5;
-const double ang_bottom = 35.0;
-const double ang_left = 105.0;
-const int ground_scan_id = 10;
-const double sensor_mount_ang = 0.; // Down positive, up negative
-
-const double seg_alpha_x = ANGLE2RAD(ang_res_x);
-const double seg_alpha_y = ANGLE2RAD(ang_res_y);
-// Adjustable parameters
-const double seg_theta = 1.047;
-const int seg_valid_point_num = 5;
-const int seg_valid_line_num = 3;
-
-// (use_imu && use_odom) == false
-const bool use_imu = true;
-const bool use_odom = false;
-const int imu_queue_length = 200;
-const int odom_queue_length = 1000;
-
-const bool use_slam_odom = false;
-
-const double nearest_feature_dist = 25.; // sqaured, 对应 5m
-
 enum LaserType
 {
   LSLIDAR_C16,
   RFANS_16M
 };
-
-LaserType laser_type = LaserType::LSLIDAR_C16;
 
 struct PointXYZIRPYT
 {
@@ -100,6 +69,79 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIRPYT,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(float, roll, roll)(float, pitch, pitch)(float, yaw, yaw)(double, time, time))
 
 typedef PointXYZIRPYT PointTypePose;
+
+class ParamServer
+{
+public:
+
+  ros::NodeHandle nh_;
+
+  int N_SCAN;
+  double ang_res_x; // 10Hz: 0.18, 5Hz: 0.09
+  double ang_res_y;
+  double scan_frec; // 10Hz: 0.1, 5Hz: 0.2
+  double scan_period;
+
+  double Horizon_angle;
+  int Horizon_SCAN;
+  double ang_bottom;
+  double ang_left;
+  int ground_scan_id;
+  double sensor_mount_ang; // Down positive, up negative
+
+  double seg_alpha_x;
+  double seg_alpha_y;
+  // Adjustable parameters
+  double seg_theta;
+  int seg_valid_point_num;
+  int seg_valid_line_num;
+
+  // (use_imu && use_odom) == false
+  bool use_imu;
+  bool use_odom;
+  int imu_queue_length;
+  int odom_queue_length;
+
+  bool use_slam_odom;
+
+  double nearest_feature_dist; // sqaured, 对应 5m
+
+  LaserType laser_type = LaserType::LSLIDAR_C16;
+
+  ParamServer()
+  {
+    nh_.param<int>("N_SCAN", N_SCAN, 64);
+    nh_.param<double>("ang_res_x", ang_res_x, 0.7);
+    nh_.param<double>("ang_res_y", ang_res_y, 2.1875);
+    nh_.param<double>("scan_frec", scan_frec, 15);
+    scan_period = 1.0/scan_frec;
+
+    nh_.param<double>("Horizon_angle", Horizon_angle, 210.0);
+    Horizon_SCAN = Horizon_angle / ang_res_x + 0.5;
+    nh_.param<double>("ang_bottom", ang_bottom, 35);
+    nh_.param<double>("ang_left", ang_left, 105.0);
+    nh_.param<int>("ground_scan_id", ground_scan_id, 10);
+    nh_.param<double>("sensor_mount_ang", sensor_mount_ang, 0.);
+
+    seg_alpha_x = ANGLE2RAD(ang_res_x);
+    seg_alpha_y = ANGLE2RAD(ang_res_y);
+
+    nh_.param<double>("seg_theta", seg_theta, 1.047);
+    nh_.param<int>("seg_valid_point_num", seg_valid_point_num, 5);
+    nh_.param<int>("seg_valid_line_num", seg_valid_line_num, 3);
+
+    nh_.param<bool>("use_imu", use_imu, true);
+    nh_.param<bool>("use_odom", use_odom, false);
+    nh_.param<int>("imu_queue_length", imu_queue_length, 200);
+    nh_.param<int>("odom_queue_length", odom_queue_length, 1000);
+
+    nh_.param<bool>("use_slam_odom", use_slam_odom, true);
+
+    nh_.param<double>("nearest_feature_dist", nearest_feature_dist, 25.);
+  }
+};
+
+
 
 class TicToc
 {
