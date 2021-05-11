@@ -1,6 +1,8 @@
 #ifndef _LOAM_UTILITY_
 #define _LOAM_UTILITY_
 
+#define PCL_NO_PRECOMPILE
+
 #include <iostream>
 #include <vector>
 #include <queue>
@@ -28,12 +30,18 @@
 #include "alego/cloud_info.h"
 
 #include <pcl/point_types.h>
+#include <pcl/impl/point_types.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/impl/voxel_grid.hpp>
 #include <pcl/registration/icp.h>
+#include <pcl/registration/impl/icp.hpp>
 #include <pcl/io/pcd_io.h>
+#include <pcl/io/impl/pcd_io.hpp>
 #include <pcl/common/common.h>
+#include <pcl/common/impl/common.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <Eigen/Geometry>
@@ -42,7 +50,20 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-using PointT = pcl::PointXYZI;
+struct PointXYZRGBI
+{
+  PCL_ADD_INTENSITY;
+  PCL_ADD_POINT4D;
+  PCL_ADD_RGB;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+} EIGEN_ALIGN16;
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZRGBI,
+                                  (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(float, rgb, rgb))
+
+typedef PointXYZRGBI PointTypeColor;
+
+using PointT = PointTypeColor;
 using PointCloudT = pcl::PointCloud<PointT>;
 
 #define RAD2ANGLE(x) ((x)*180.0 / M_PI)
