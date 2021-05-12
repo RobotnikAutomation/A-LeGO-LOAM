@@ -50,18 +50,18 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-struct PointXYZRGBI
+struct PointXYZIRGB
 {
-  PCL_ADD_INTENSITY;
   PCL_ADD_POINT4D;
+  PCL_ADD_INTENSITY;
   PCL_ADD_RGB;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 
-POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZRGBI,
+POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIRGB,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(float, rgb, rgb))
 
-typedef PointXYZRGBI PointTypeColor;
+typedef PointXYZIRGB PointTypeColor;
 
 using PointT = PointTypeColor;
 using PointCloudT = pcl::PointCloud<PointT>;
