@@ -44,6 +44,8 @@
 #include <pcl/common/impl/common.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 
+#include <pcl/io/ply_io.h>
+
 #include <Eigen/Geometry>
 #include <Eigen/Core>
 
