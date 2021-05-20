@@ -38,6 +38,8 @@
 #include <pcl/common/common.h>
 #include <pcl_conversions/pcl_conversions.h>
 
+#include <pcl/io/ply_io.h>
+
 #include <Eigen/Geometry>
 #include <Eigen/Core>
 

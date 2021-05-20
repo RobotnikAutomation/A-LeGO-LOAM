@@ -1,5 +1,8 @@
 # A-LeGO-LOAM
 
+## Documentación
+Documentación en este [link](https://docs.google.com/document/d/1_RI93eyiWT-eurGQL3rN60-rSXj2Euzt5t2hJoAzqus/edit?usp=sharing).
+
 ## Introduction
 
 ~~Advanced~~ implementation of LeGO-LOAM[1].

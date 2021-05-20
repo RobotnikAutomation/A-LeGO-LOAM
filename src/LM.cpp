@@ -40,6 +40,7 @@ private:
   std::string base_map_frame;
   bool broadcast_tf;
   std::string output_map_topic;
+  std::string save_path;
 
   double corner_leaf_size;
   double surf_leaf_size;
@@ -167,6 +168,9 @@ public:
     ros::param::get("base_frame", base_frame);
     ros::param::get("odom_map_frame", odom_map_frame);
     ros::param::get("broadcast_tf", broadcast_tf);
+    // TODO: add path param for savePCDFile
+    save_path = "";
+    ros::param::get("save_path", save_path);
 
     surf_last_.reset(new PointCloudT);
     corner_last_.reset(new PointCloudT);
@@ -1107,10 +1111,11 @@ public:
     map_outlier->height = 1;
     map_outlier->is_dense = true;
 
-    pcl::io::savePCDFile("/home/zh/keypose.pcd", *map_keypose);
-    pcl::io::savePCDFile("/home/zh/corner.pcd", *map_corner);
-    pcl::io::savePCDFile("/home/zh/surf.pcd", *map_surf);
-    pcl::io::savePCDFile("/home/zh/outlier.pcd", *map_outlier);
+    pcl::io::savePCDFile(save_path + "keypose.pcd", *map_keypose);
+    pcl::io::savePCDFile(save_path + "corner.pcd", *map_corner);
+    pcl::io::savePCDFile(save_path + "surf.pcd", *map_surf);
+    pcl::io::savePCDFile(save_path + "outlier.pcd", *map_outlier);
+    pcl::io::savePLYFile(save_path + "map.ply", *map_surf);
 
     return true;
   }
