@@ -41,3 +41,5 @@ surf_leaf_size: 0.2
 outlier_leaf_size: 1.0
 keyposes_leaf_size: 1.0
 history_keyframes_leaf_size: 0.4
+
+save_path: '/home/robot/'
