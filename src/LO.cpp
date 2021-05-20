@@ -446,15 +446,15 @@ public:
             {
               closest_idx = search_idx[0];
               double point_dist, min_dist2 = nearest_feature_dist, min_dist3 = nearest_feature_dist;
-              int closest_scan = int(surf_last_->points[closest_idx].intensity);
+              int closest_scan = int(surf_last_->points[closest_idx].label/10000);
               for (int k = closest_idx + 1; k < surf_last_->points.size(); ++k)
               {
-                if (int(surf_last_->points[k].intensity) > closest_scan + 2.5)
+                if (int(surf_last_->points[k].label/10000) > closest_scan + 2.5)
                 {
                   break;
                 }
                 point_dist = pow(surf_last_->points[k].x - point_sel.x, 2) + pow(surf_last_->points[k].y - point_sel.y, 2) + pow(surf_last_->points[k].z - point_sel.z, 2);
-                if (int(surf_last_->points[k].intensity) == closest_scan)
+                if (int(surf_last_->points[k].label/10000) == closest_scan)
                 {
                   if (point_dist < min_dist2)
                   {
@@ -473,12 +473,12 @@ public:
               }
               for (int k = closest_idx - 1; k >= 0; --k)
               {
-                if (int(surf_last_->points[k].intensity) < closest_scan - 2.5)
+                if (int(surf_last_->points[k].label/10000) < closest_scan - 2.5)
                 {
                   break;
                 }
                 point_dist = pow(surf_last_->points[k].x - point_sel.x, 2) + pow(surf_last_->points[k].y - point_sel.y, 2) + pow(surf_last_->points[k].z - point_sel.z, 2);
-                if (int(surf_last_->points[k].intensity) == closest_scan)
+                if (int(surf_last_->points[k].label/10000) == closest_scan)
                 {
                   if (point_dist < min_dist2)
                   {
@@ -535,17 +535,17 @@ public:
             if (search_dist[0] < nearest_feature_dist)
             {
               closest_idx = search_idx[0];
-              int closest_scan = int(corner_last_->points[closest_idx].intensity);
+              int closest_scan = int(corner_last_->points[closest_idx].label/10000);
               double point_dist, min_point_dist2 = nearest_feature_dist;
               // lego 这里 k 的范围写的不对
               for (int k = closest_idx + 1; k < corner_last_->points.size(); ++k)
               {
-                if (int(corner_last_->points[k].intensity) > closest_scan + 2.5)
+                if (int(corner_last_->points[k].label/10000) > closest_scan + 2.5)
                 {
                   break;
                 }
                 point_dist = pow(corner_last_->points[k].x - point_sel.x, 2) + pow(corner_last_->points[k].y - point_sel.y, 2) + pow(corner_last_->points[k].z - point_sel.z, 2);
-                if (int(corner_last_->points[k].intensity) > closest_scan)
+                if (int(corner_last_->points[k].label/10000) > closest_scan)
                 {
                   if (point_dist < min_point_dist2)
                   {
@@ -556,12 +556,12 @@ public:
               }
               for (int k = closest_idx - 1; k >= 0; --k)
               {
-                if (int(corner_last_->points[k].intensity) < closest_scan - 2.5)
+                if (int(corner_last_->points[k].label/10000) < closest_scan - 2.5)
                 {
                   break;
                 }
                 point_dist = pow(corner_last_->points[k].x - point_sel.x, 2) + pow(corner_last_->points[k].y - point_sel.y, 2) + pow(corner_last_->points[k].z - point_sel.z, 2);
-                if (int(corner_last_->points[k].intensity) < closest_scan)
+                if (int(corner_last_->points[k].label/10000) < closest_scan)
                 {
                   if (point_dist < min_point_dist2)
                   {
@@ -848,7 +848,7 @@ public:
     po.x = un_point.x();
     po.y = un_point.y();
     po.z = un_point.z();
-    po.intensity = pi.intensity;
+    po.label = pi.label;
   }
 
   void segCloudHandler(const sensor_msgs::PointCloud2ConstPtr &msg)

@@ -418,7 +418,7 @@ public:
         recent_outlier_keyframes_.clear();
         for (int i = cloud_keyposes_3d_->size() - 1; i >= 0; --i)
         {
-          int frame_id = int(cloud_keyposes_3d_->points[i].intensity);
+          int frame_id = int(cloud_keyposes_3d_->points[i].label/10000);
           recent_corner_keyframes_.push_front(transformPointCloud(corner_frames_[frame_id], cloud_keyposes_6d_->points[frame_id]));
           recent_surf_keyframes_.push_front(transformPointCloud(surf_frames_[frame_id], cloud_keyposes_6d_->points[frame_id]));
           recent_outlier_keyframes_.push_front(transformPointCloud(outlier_frames_[frame_id], cloud_keyposes_6d_->points[frame_id]));
@@ -474,7 +474,7 @@ public:
         bool exist_flag = false;
         for (int j = 0; j < len; ++j)
         {
-          if (surround_exist_keypose_id_[i] == int(surround_keyposes_ds_->points[i].intensity))
+          if (surround_exist_keypose_id_[i] == int(surround_keyposes_ds_->points[i].label/10000))
           {
             exist_flag = true;
             break;
@@ -495,7 +495,7 @@ public:
         bool exist_flag = false;
         for (auto iter = surround_exist_keypose_id_.begin(); iter != surround_exist_keypose_id_.end(); ++iter)
         {
-          if ((*iter) == int(surround_keyposes_ds_->points[i].intensity))
+          if ((*iter) == int(surround_keyposes_ds_->points[i].label/10000))
           {
             exist_flag = true;
             break;
@@ -503,7 +503,7 @@ public:
         }
         if (false == exist_flag)
         {
-          int frame_id = int(surround_keyposes_ds_->points[i].intensity);
+          int frame_id = int(surround_keyposes_ds_->points[i].label/10000);
           surround_exist_keypose_id_.push_back(frame_id);
           surround_surf_keyframes_.push_back(transformPointCloud(surf_frames_[frame_id], cloud_keyposes_6d_->points[frame_id]));
           surround_corner_keyframes_.push_back(transformPointCloud(corner_frames_[frame_id], cloud_keyposes_6d_->points[frame_id]));
@@ -734,7 +734,7 @@ public:
     this_pose_6d.x = this_pose_3d.x = latest_estimate.translation().x();
     this_pose_6d.y = this_pose_3d.y = latest_estimate.translation().y();
     this_pose_6d.z = this_pose_3d.z = latest_estimate.translation().z();
-    this_pose_6d.intensity = this_pose_3d.intensity = cloud_keyposes_3d_->points.size() + 0.1;
+    this_pose_6d.label = this_pose_3d.label = cloud_keyposes_3d_->points.size()*10000 + 1000;
     this_pose_6d.roll = latest_estimate.rotation().roll();
     this_pose_6d.pitch = latest_estimate.rotation().pitch();
     this_pose_6d.yaw = latest_estimate.rotation().yaw();
@@ -1054,14 +1054,14 @@ public:
     p_out.x = out.x();
     p_out.y = out.y();
     p_out.z = out.z();
-    p_out.intensity = p_in.intensity;
+    p_out.label = p_in.label;
   }
   PointCloudT::Ptr transformPointCloud(const PointCloudT::ConstPtr cloud_in, const PointTypePose &trans, int idx)
   {
     PointCloudT::Ptr tf_cloud = transformPointCloud(cloud_in, trans);
     for (auto &p : tf_cloud->points)
     {
-      p.intensity = idx;
+      p.label = idx*10000;
     }
     return tf_cloud;
   }
@@ -1076,7 +1076,7 @@ public:
     for (int i = 0; i < cloud_keyposes_3d_->points.size(); ++i)
     {
       PointT p = cloud_keyposes_3d_->points[i];
-      p.intensity = i;
+      p.label = i*10000;
       map_keypose->points.push_back(p);
     }
 

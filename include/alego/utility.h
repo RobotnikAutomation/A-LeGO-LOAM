@@ -1,8 +1,6 @@
 #ifndef _LOAM_UTILITY_
 #define _LOAM_UTILITY_
 
-#define PCL_NO_PRECOMPILE
-
 #include <iostream>
 #include <vector>
 #include <queue>
@@ -30,18 +28,14 @@
 #include "alego/cloud_info.h"
 
 #include <pcl/point_types.h>
-#include <pcl/impl/point_types.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/impl/voxel_grid.hpp>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/filter.h>
 #include <pcl/registration/icp.h>
-#include <pcl/registration/impl/icp.hpp>
 #include <pcl/io/pcd_io.h>
-#include <pcl/io/impl/pcd_io.hpp>
 #include <pcl/common/common.h>
-#include <pcl/common/impl/common.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <Eigen/Geometry>
@@ -50,7 +44,7 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-struct PointXYZIRGB
+/*struct PointXYZIRGB
 {
   PCL_ADD_POINT4D;
   PCL_ADD_INTENSITY;
@@ -63,7 +57,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIRGB,
 
 typedef PointXYZIRGB PointTypeColor;
 
-using PointT = PointTypeColor;
+using PointT = PointTypeColor;*/
+using PointT = pcl::PointXYZRGBL;
 using PointCloudT = pcl::PointCloud<PointT>;
 
 #define RAD2ANGLE(x) ((x)*180.0 / M_PI)
@@ -75,10 +70,10 @@ enum LaserType
   RFANS_16M
 };
 
-struct PointXYZIRPYT
+struct PointXYZLRPYT
 {
   PCL_ADD_POINT4D
-  PCL_ADD_INTENSITY;
+  std::uint32_t label;
   float roll;
   float pitch;
   float yaw;
@@ -86,10 +81,10 @@ struct PointXYZIRPYT
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 
-POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIRPYT,
-                                  (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(float, roll, roll)(float, pitch, pitch)(float, yaw, yaw)(double, time, time))
+POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZLRPYT,
+                                  (float, x, x)(float, y, y)(float, z, z)(std::uint32_t, label, label)(float, roll, roll)(float, pitch, pitch)(float, yaw, yaw)(double, time, time))
 
-typedef PointXYZIRPYT PointTypePose;
+typedef PointXYZLRPYT PointTypePose;
 
 class ParamServer
 {

@@ -53,7 +53,7 @@ public:
     segmented_cloud_.reset(new PointCloudT());
     outlier_cloud_.reset(new PointCloudT());
     PointT nan_p;
-    nan_p.intensity = -1;
+    nan_p.label = -1;
     full_cloud_->points.resize(N_SCAN * Horizon_SCAN);
     std::fill(full_cloud_->points.begin(), full_cloud_->points.end(), nan_p);
 
@@ -91,6 +91,8 @@ public:
     {
       if (cloud_in.points[i].x * cloud_in.points[i].x + cloud_in.points[i].y * cloud_in.points[i].y + cloud_in.points[i].z * cloud_in.points[i].z < thres * thres)
         continue;
+      if (isnan(cloud_in.points[i].x) || isnan(cloud_in.points[i].y) || isnan(cloud_in.points[i].z))
+        continue;
       cloud_out.points[j] = cloud_in.points[i];
       j++;
     }
@@ -112,13 +114,11 @@ public:
     seg_info_msg_->header = msg->header;
     PointCloudT::Ptr cloud_in(new PointCloudT());
     pcl::fromROSMsg(*msg, *cloud_in);
-    // ROS_INFO("cloud_in size: %d", cloud_in->points.size());
 
     std::vector<int> indices;
     pcl::removeNaNFromPointCloud(*cloud_in, *cloud_in, indices);
     removeClosedPointCloud(*cloud_in, *cloud_in, 1.0);
 
-    ROS_INFO("CB 1");
     int cloud_size = cloud_in->points.size();
     seg_info_msg_->startOrientation = -atan2(cloud_in->points[0].y, cloud_in->points[0].x);
     seg_info_msg_->endOrientation = -atan2(cloud_in->points[cloud_size - 1].y, cloud_in->points[cloud_size - 1].x) + 2 * M_PI;
@@ -180,7 +180,7 @@ public:
       }
       if (row_id < 0 || row_id >= N_SCAN)
       {
-        ROS_WARN("error row_id");
+        ROS_WARN("error row_id: %d", row_id);
         continue;
       }
 
@@ -204,13 +204,13 @@ public:
 
       if (col_id < 0 || col_id >= Horizon_SCAN)
       {
-        ROS_WARN("error col_id %d ", col_id);
+        ROS_WARN("error col_id: %d ", col_id);
         continue;
       }
 
       range_mat_.at<double>(row_id, col_id) = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 
-      p.intensity = row_id + col_id / 10000.0;
+      p.label = row_id*10000 + col_id;
       index = col_id + row_id * Horizon_SCAN;
       full_cloud_->points[index] = p;
     }
@@ -225,7 +225,7 @@ public:
         lower_id = j + i * Horizon_SCAN;
         upper_id = j + (i + 1) * Horizon_SCAN;
 
-        if (-1 == full_cloud_->points[lower_id].intensity || -1 == full_cloud_->points[upper_id].intensity)
+        if (-1 == full_cloud_->points[lower_id].label || -1 == full_cloud_->points[upper_id].label)
         {
           continue;
         }
@@ -316,7 +316,7 @@ public:
       ground_mat_[i] = false;
     label_cnt_ = 1;
     PointT nan_p;
-    nan_p.intensity = -1;
+    nan_p.label = -1;
     std::fill(full_cloud_->points.begin(), full_cloud_->points.end(), nan_p);
 
     // std::cout << "image projection time: " << t_whole.toc() << " ms" << std::endl;
