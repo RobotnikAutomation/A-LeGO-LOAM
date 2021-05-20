@@ -99,6 +99,7 @@ private:
   PointCloudT::Ptr laser_surf_ds_;
   PointCloudT::Ptr laser_outlier_ds_;
   PointCloudT::Ptr laser_surf_total_ds_;
+  PointCloudT::Ptr pc_map_;
   double time_laser_corner_;
   double time_laser_surf_;
   double time_laser_outlier_;
@@ -193,6 +194,9 @@ public:
     kd_surf_map_.reset(new pcl::KdTreeFLANN<PointT>);
     kd_corner_map_.reset(new pcl::KdTreeFLANN<PointT>);
     kd_keyposes_.reset(new pcl::KdTreeFLANN<PointT>);
+    pc_map_.reset(new PointCloudT);
+
+    /*kd_map_.reset(new pcl::KdTreeFLANN<PointT>);*/
 
     new_laser_surf_ = new_laser_corner_ = new_laser_outlier_ = new_laser_corner_ = false;
 
@@ -618,6 +622,9 @@ public:
             problem.AddResidualBlock(new LidarEdgeCostFunction(cp, lpj, lpl),
                                      loss_function, params_);
             ++corner_correspondace;
+            /*if(point_dist_[0]<=0.1){
+
+            }*/
           }
           else
           {
@@ -667,6 +674,11 @@ public:
                                      loss_function, params_);
             // TODO: 先解决 corner 数量过少的问题，少了十倍
             ++surf_correnspondance;
+
+            /*if(punto nuevo está más cerca de nosecuánto al punto más cercano){
+              hacer ksearch en cada uno de los pointclouds que se añaden luego y si se encuentra el punto añadir el color_ref
+              mirar a ver si se puede hacer un ksearch solamente con el label y que solo encuentre un punto concreto para hacerlo más rápido
+            }*/
           }
         }
       }
@@ -814,14 +826,15 @@ public:
       if (pub_cloud_surround_.getNumSubscribers() > 0)
       {
         sensor_msgs::PointCloud2Ptr msg(new sensor_msgs::PointCloud2);
-        PointCloudT::Ptr pc_map(new PointCloudT);
+        //PointCloudT::Ptr pc_map(new PointCloudT);
+        pc_map_->clear();
         for (int i = 0; i < cloud_keyposes_3d_->size(); ++i)
         {
-          *pc_map += *transformPointCloud(surf_frames_[i], cloud_keyposes_6d_->points[i]);
-          *pc_map += *transformPointCloud(corner_frames_[i], cloud_keyposes_6d_->points[i]);
-          *pc_map += *transformPointCloud(outlier_frames_[i], cloud_keyposes_6d_->points[i]);
+          *pc_map_ += *transformPointCloud(surf_frames_[i], cloud_keyposes_6d_->points[i]);
+          *pc_map_ += *transformPointCloud(corner_frames_[i], cloud_keyposes_6d_->points[i]);
+          *pc_map_ += *transformPointCloud(outlier_frames_[i], cloud_keyposes_6d_->points[i]);
         }
-        pcl::toROSMsg(*pc_map, *msg);
+        pcl::toROSMsg(*pc_map_, *msg);
         msg->header.stamp.fromSec(time_laser_odom_);
         msg->header.frame_id = map_frame;
         pub_cloud_surround_.publish(msg);
@@ -829,10 +842,11 @@ public:
       if (pub_recent_keyframes_.getNumSubscribers() > 0)
       {
         sensor_msgs::PointCloud2Ptr msg(new sensor_msgs::PointCloud2);
-        PointCloudT::Ptr pc_map(new PointCloudT);
-        *pc_map += *corner_from_map_ds_;
-        *pc_map += *surf_from_map_ds_;
-        pcl::toROSMsg(*pc_map, *msg);
+        //PointCloudT::Ptr pc_map(new PointCloudT);
+        pc_map_->clear();
+        *pc_map_ += *corner_from_map_ds_;
+        *pc_map_ += *surf_from_map_ds_;
+        pcl::toROSMsg(*pc_map_, *msg);
         msg->header.stamp.fromSec(time_laser_odom_);
         msg->header.frame_id = map_frame;
         pub_recent_keyframes_.publish(msg);
@@ -1115,7 +1129,7 @@ public:
     pcl::io::savePCDFile(save_path + "corner.pcd", *map_corner);
     pcl::io::savePCDFile(save_path + "surf.pcd", *map_surf);
     pcl::io::savePCDFile(save_path + "outlier.pcd", *map_outlier);
-    pcl::io::savePLYFile(save_path + "map.ply", *map_surf);
+    pcl::io::savePLYFile(save_path + "map.ply", *pc_map_);
 
     return true;
   }
