@@ -67,7 +67,7 @@ robo_0529.bag 粗略测试，1 step 优化时长 7915ms(1.90ms/frame)(10 iterati
 ## Dependency
 
 - [gtsam](https://github.com/borglab/gtsam/releases)(Georgia Tech Smoothing and Mapping library, 4.0.0-alpha2)
-- ceres
+- [ceres](http://ceres-solver.org/installation.html)(1.14)
 
 ## TODOs
 
